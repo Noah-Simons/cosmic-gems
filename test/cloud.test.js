@@ -1,142 +1,133 @@
-/* Tests for js/cloud.js using a mocked Supabase client.
- * Confirms: offline fallback (no config), email sign-in, score submission
- * (upsert with user_id), and leaderboard ordering (leveled by level, infinite
- * by score). Run with: node test/cloud.test.js
+/* Tests for js/cloud.js using a mocked global fetch (the new direct-REST model).
+ * Confirms: offline fallback (no config), email sign-up/in with the right REST
+ * endpoints, score submission (scores POST with Prefer merge + user_id),
+ * leaderboard read/ordering (leveled by level, infinite by score), and the
+ * two-call profiles/scores join for display names. Run: node test/cloud.test.js
  */
 let pass = 0, fail = 0;
 const ok = (c, m) => (c ? pass++ : (fail++, console.error('  FAIL:', m)));
 
-// --- minimal fake DOM so cloud.js can run under Node ---
-const rootEls = {};
-function makeEl(t) {
-  return {
-    tagName: (t || 'div').toUpperCase(),
-    style: {}, dataset: {}, children: [],
-    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
-    appendChild(c) { this.children.push(c); },
-    addEventListener() {}, set innerHTML(v) { this._html = v; }, get innerHTML() { return this._html || ''; },
-    set textContent(v) { this._text = v; }, get textContent() { return this._text || ''; },
-    setAttribute() {}, getAttribute() { return null; },
-  };
-}
 global.window = global;
-global.localStorage = { _d: {}, getItem(k) { return this._d[k] ?? null; }, setItem(k, v) { this._d[k] = v; } };
+global.localStorage = { _d: {}, getItem(k) { return this._d[k] ?? null; }, setItem(k, v) { this._d[k] = v; }, removeItem(k){ delete this._d[k]; } };
 
-// --- mocked Supabase client ---
-function makeMockClient({ signInResult, upsertResult, selectResult } = {}) {
-  const users = [];
-  return {
-    auth: {
-      signInWithPassword: async (p) => ({ data: { user: { id: 'u1', email: p.email, user_metadata: {} }, session: {} }, error: null }),
-      signUp: async (p) => ({ data: { user: { id: 'u1', email: p.email, user_metadata: {} }, session: {} }, error: null }),
-      signInWithOAuth: async () => ({ data: { url: 'https://example.com/oauth' }, error: null }),
-      signOut: async () => ({ error: null }),
-      onAuthStateChange: (cb) => { mockClient._authCb = cb; return { data: { subscription: { unsubscribe() {} } } }; },
-      getUser: async () => ({ data: { user: { id: 'u1', email: 'me@x.com', user_metadata: {} } } }),
-    },
-    from: (table) => ({
-      upsert: (payload, opts) => { mockClient._lastUpsert = { payload, opts }; return { error: upsertResult || null }; },
-      select: (cols) => ({
-        eq: () => ({
-          order: () => ({
-            limit: async () => ({ data: selectResult || [], error: null }),
-          }),
-        }),
-      }),
-    }),
+// ---- mock fetch that records the last request + returns scripted responses ----
+let lastReq = null;
+let lastScoresReq = null;
+let mode = 'ok'; // 'ok' | 'badLogin' | 'fetchFail'
+function makeFetch(apiBase, store) {
+  return async (url, opts) => {
+    url = String(url); opts = opts || {};
+    lastReq = { url, method: (opts.method || 'GET').toUpperCase(), headers: opts.headers || {}, body: opts.body ? JSON.parse(opts.body) : null };
+    const isScores = url.includes('/rest/v1/scores');
+    const isProfiles = url.includes('/rest/v1/profiles');
+    const isSignup = url.endsWith('/auth/v1/signup');
+    const isToken = url.includes('/auth/v1/token');
+    const isUser = url.endsWith('/auth/v1/user');
+    const isLogout = url.endsWith('/auth/v1/logout');
+    if (mode === 'fetchFail') return Promise.reject(new Error('network down'));
+
+    if (isSignup) {
+      const uid = 'u1';
+      store.profiles.push({ id: uid, display_name: 'Commander' });
+      return { ok: true, status: 200, json: async () => ({ data: { user: { id: uid, email: lastReq.body.email }, session: { access_token: 'tok_' + uid, refresh_token: 'r', user: { id: uid } } } }) };
+    }
+    if (isToken) {
+      if (mode === 'badLogin') return { ok: false, status: 400, json: async () => ({ error: { message: 'Invalid login credentials' } }) };
+      return { ok: true, status: 200, json: async () => ({ access_token: 'tok_u1', refresh_token: 'r', user: { id: 'u1', email: lastReq.body.email } }) };
+    }
+    if (isUser) return { ok: true, status: 200, json: async () => ({ user: { id: 'u1', email: 'me@x.com' } }) };
+    if (isLogout) return { ok: true, status: 204, json: async () => ({}) };
+    if (isScores && lastReq.method === 'POST') {
+      const row = lastReq.body[0];
+      const ex = store.scores.find(s => s.user_id === row.user_id && s.mode === row.mode);
+      if (ex) Object.assign(ex, row); else store.scores.push(row);
+      ok(row.user_id === 'u1', 'submitScore POST includes user_id');
+      ok(/resolution=merge-duplicates/.test(lastReq.headers.Prefer || ''), 'submitScore sends Prefer merge-duplicates');
+      ok(lastReq.headers.Authorization === 'Bearer tok_u1', 'submitScore sends auth token');
+      return { ok: true, status: 201, json: async () => ({}) };
+    }
+    if (isProfiles) return { ok: true, status: 200, json: async () => store.profiles };
+    if (isScores && lastReq.method === 'GET') {
+      const q = new URL(url).searchParams;
+      let rows = store.scores.slice();
+      if (q.get('mode')) rows = rows.filter(s => s.mode === q.get('mode').replace('eq.', ''));
+      if (q.get('user_id')) rows = rows.filter(s => s.user_id === q.get('user_id').replace('eq.', ''));
+      const order = q.get('order') || 'score.desc';
+      const [col, dir] = order.split('.');
+      rows.sort((a, b) => dir === 'desc' ? b[col] - a[col] : a[col] - b[col]);
+      lastScoresReq = lastReq.url;
+      return { ok: true, status: 200, json: async () => rows };
+    }
+    return { ok: false, status: 404, json: async () => ({ error: { message: 'not found' } }) };
   };
 }
 
-let mockClient;
-
-// build cloud.js with a given config + client
-function loadCloud({ enabled, client }) {
+function loadCloud({ enabled, fetchImpl, apiBase }) {
   global.COSMIC_CONFIG = enabled
-    ? { url: 'https://demo.supabase.co', anon: 'public-anon-key' }
+    ? { url: apiBase || 'https://demo.supabase.co', anon: 'public-anon-key' }
     : { url: 'REPLACE_WITH_YOUR_SUPABASE_URL', anon: '' };
-  global.supabase = { createClient: () => client };
-  // re-evaluate cloud.js fresh each time
-  const fs = require('fs');
-  const path = require('path');
+  global.fetch = fetchImpl;
+  const fs = require('fs'), path = require('path');
   const code = fs.readFileSync(path.join(__dirname, '..', 'js', 'cloud.js'), 'utf8');
-  delete require.cache[require.resolve(path.join(__dirname, '..', 'js', 'cloud.js'))];
-  // cloud.js attaches to window.Cloud; eval in this scope
-  const fn = new Function('window', 'supabase', code + '\n;return window.Cloud;');
-  return fn(global, global.supabase);
+  delete global.Cloud;
+  // cloud.js reads window.COSMIC_CONFIG + fetch from globals; run in this scope
+  (function () { const window = global; eval(code); })();
+  return global.Cloud;
 }
 
 (async () => {
-  // 1. offline fallback when config is not filled in
-  let C = loadCloud({ enabled: false, client: null });
+  // 1. offline fallback when config not set
+  let C = loadCloud({ enabled: false, fetchImpl: makeFetch('https://demo.supabase.co', { scores: [], profiles: [] }) });
   ok(C.isEnabled() === false, 'disabled when config not set');
-  let r = await C.signInEmail('a@b.com', 'pw', false);
-  ok(r.offline === true, 'sign-in returns offline=true when disabled');
-  let lb = await C.getLeaderboard('leveled');
-  ok(lb.offline === true && lb.rows.length === 0, 'leaderboard offline when disabled');
+  ok((await C.signInEmail('a@b.com', 'pw', false)).offline === true, 'sign-in offline=true when disabled');
+  ok((await C.getLeaderboard('leveled')).offline === true, 'leaderboard offline when disabled');
 
-  // 2. enabled + email sign-up + score submit
-  // The leaderboard returns leveled sorted by level desc; infinite by score desc.
-  const selectResultLeveled = [
-    { score: 5, level: 9, profiles: { display_name: 'Ada' } },
-    { score: 3, level: 4, profiles: { display_name: 'Bob' } },
-  ];
-  const selectResultInfinite = [
-    { score: 1200, level: 1, profiles: { display_name: 'Bob' } },
-    { score: 800, level: 1, profiles: { display_name: 'Ada' } },
-  ];
-  mockClient = makeMockClient({});
-  C = loadCloud({ enabled: true, client: mockClient });
-  ok(C.isEnabled() === true, 'enabled when config + client present');
+  // 2. enabled: sign-up + submit + leaderboard
+  const store = { scores: [], profiles: [] };
+  mode = 'ok';
+  C = loadCloud({ enabled: true, fetchImpl: makeFetch('https://demo.supabase.co', store), apiBase: 'https://demo.supabase.co' });
+  ok(C.isEnabled() === true, 'enabled when config + fetch present');
 
-  const res = await C.signInEmail('me@x.com', 'pw123', true);
-  ok(res.ok === true && res.user, 'email sign-up succeeds (mock)');
+  const su = await C.signInEmail('me@x.com', 'pw123', true);
+  ok(su.ok === true && su.user, 'email sign-up succeeds (REST)');
+  ok(lastReq.url.endsWith('/auth/v1/signup'), 'sign-up hits /auth/v1/signup');
+
+  const si = await C.signInEmail('me@x.com', 'pw123', false);
+  ok(si.ok === true && si.session && typeof si.session.access_token === 'string', 'email sign-in returns session token (REST)');
+  ok(lastReq.url.includes('/auth/v1/token?grant_type=password'), 'sign-in hits token grant');
 
   await C.submitScore('leveled', 9, 9);
-  ok(mockClient._lastUpsert && mockClient._lastUpsert.payload.user_id === 'u1', 'submitScore writes user_id');
-  ok(mockClient._lastUpsert.opts.onConflict === 'user_id,mode', 'submitScore upserts on (user_id,mode)');
+  ok(store.scores.some(s => s.mode === 'leveled' && s.score === 9 && s.user_id === 'u1'), 'submitScore stored a leveled row for the signed-in user');
 
-  // 3. leaderboard ordering: leveled sorts by level desc, infinite by score desc
-  // patch select to depend on mode by intercepting: simpler to test via two calls
-  // We set selectResult per call by overriding getLeaderboard path is internal;
-  // instead, verify the order column choice by checking returned mapping only.
-  // Re-load with a select that returns mode-aware data through closures:
-  mockClient = {
-    auth: makeMockClient().auth,
-    from: () => ({
-      upsert: () => ({ error: null }),
-      select: () => ({
-        eq: (col, val) => ({
-          order: (colName) => ({
-            limit: async () => ({
-              data: colName === 'level'
-                ? selectResultLeveled
-                : selectResultInfinite,
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    }),
-  };
-  C = loadCloud({ enabled: true, client: mockClient });
-  const lbL = await C.getLeaderboard('leveled');
-  ok(lbL.ok && lbL.rows[0].level === 9 && lbL.rows[1].level === 4, 'leveled leaderboard ordered by level desc');
+  // leaderboard: submit infinite scores (production enforces one row per mode
+  // via upsert, so we use submitScore, not hand-push duplicates)
+  await C.submitScore('infinite', 800, 1);
+  await C.submitScore('infinite', 1200, 1); // higher best replaces
   const lbI = await C.getLeaderboard('infinite');
-  ok(lbI.ok && lbI.rows[0].score === 1200 && lbI.rows[1].score === 800, 'infinite leaderboard ordered by score desc');
+  ok(lbI.ok && lbI.rows.length === 1 && lbI.rows[0].score === 1200, 'infinite leaderboard shows single best (1200) sorted by score desc');
+  ok(lbI.rows[0].name === 'Commander', 'leaderboard joins display name from profiles');
+  ok(lastScoresReq.includes('order=score.desc'), 'infinite request orders by score desc');
 
-  // 4. getMyBest maps per mode
-  mockClient = {
-    auth: makeMockClient().auth,
-    from: () => ({
-      upsert: () => ({ error: null }),
-      select: () => ({
-        eq: () => ({ data: [{ mode: 'leveled', score: 7, level: 7 }, { mode: 'infinite', score: 999, level: 1 }], error: null }),
-      }),
-    }),
-  };
-  C = loadCloud({ enabled: true, client: mockClient });
+  // 3. leveled ordering (replacing best via upsert)
+  await C.submitScore('leveled', 3, 4);
+  await C.submitScore('leveled', 5, 9); // higher level replaces
+  const lbL = await C.getLeaderboard('leveled');
+  ok(lbL.ok && lbL.rows.length === 1 && lbL.rows[0].level === 9, 'leveled leaderboard shows single best (L9) sorted by level desc');
+  ok(lastScoresReq.includes('order=level.desc'), 'leveled request orders by level desc');
+
+  // 4. getMyBest (one row per mode in store => correct per-mode map)
   const mine = await C.getMyBest();
-  ok(mine && mine.leveled.level === 7 && mine.infinite.score === 999, 'getMyBest returns per-mode bests');
+  ok(mine && mine.leveled && mine.leveled.level === 9 && mine.infinite.score === 1200, 'getMyBest returns per-mode bests');
+
+  // 5. error path: bad login surfaced, no throw
+  mode = 'badLogin';
+  const bad = await C.signInEmail('me@x.com', 'wrong', false);
+  ok(bad.ok === false && /Invalid login/.test(bad.error || ''), 'sign-in error surfaced (no hang)');
+
+  // 6. network failure path
+  mode = 'fetchFail';
+  const nf = await C.signInEmail('me@x.com', 'pw123', false);
+  ok(nf.ok === false, 'network failure does not throw');
 
   console.log(`\nCloud tests: ${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);
