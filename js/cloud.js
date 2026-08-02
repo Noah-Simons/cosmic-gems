@@ -18,13 +18,25 @@
 
   let client = null;
   if (enabled) {
-    let supa;
     if (typeof window.supabase === 'undefined') {
       console.warn('[Cosmic] config present but @supabase/supabase-js not loaded. Add the CDN script in index.html.');
     } else {
-      supa = window.supabase.createClient(cfg.url, cfg.anon);
+      // Provide an explicit storage adapter. Supabase's auth client touches
+      // `storage` on init; if localStorage is blocked (e.g. file:// on some
+      // browsers) it throws "Cannot read properties of undefined (reading
+      // 'storage')". Use a in-memory shim as a safe fallback.
+      const storageFallback = (typeof localStorage !== 'undefined')
+        ? localStorage
+        : { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+      try {
+        client = window.supabase.createClient(cfg.url, cfg.anon, {
+          auth: { persistSession: true, storage: storageFallback, autoRefreshToken: true },
+        });
+      } catch (e) {
+        console.error('[Cosmic] Supabase client init failed:', e && e.message);
+        client = null;
+      }
     }
-    client = supa || null;
   }
 
   function isEnabled() { return enabled && !!client; }
