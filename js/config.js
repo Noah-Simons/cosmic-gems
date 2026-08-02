@@ -7,6 +7,6 @@
 //   4. Paste your Project URL and anon/public key below (Project Settings -> API).
 // The anon key is PUBLIC by design and safe to ship in client-side code.
 window.COSMIC_CONFIG = {
-  url: 'REPLACE_WITH_YOUR_SUPABASE_URL',
-  anon: 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY',
+  url: 'https://xtnazsekmbxvjxejcgyc.supabase.co',
+  anon: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0bmF6c2VrbWJ4dmp4ZWpjZ3ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2OTE2NTQsImV4cCI6MjEwMTI2NzY1NH0.V4dGtSz0_R6GUWJTdd1l7WdxotsBAJ3IrfZE31AzIL0',
 };
