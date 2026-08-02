@@ -33,18 +33,17 @@
     if (!isEnabled()) return { ok: false, offline: true };
     const fn = isSignUp ? client.auth.signUp : client.auth.signInWithPassword;
     const { data, error } = await fn({ email, password });
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      // Surface the real reason to the UI instead of failing silently.
+      const msg = error.message || 'Sign-in failed.';
+      return { ok: false, error: msg };
+    }
+    // signUp returns a user but, with email confirmation on, no active session.
+    // Tell the user to check their inbox rather than leaving them stuck.
+    if (isSignUp && (!data.session || (data.user && data.user.identities && data.user.identities.length === 0))) {
+      return { ok: false, needsConfirmation: true, error: 'Account created! Check your email to confirm before signing in.' };
+    }
     return { ok: true, user: data.user, session: data.session };
-  }
-
-  async function signInGoogle() {
-    if (!isEnabled()) return { ok: false, offline: true };
-    const { data, error } = await client.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href },
-    });
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, url: data.url };
   }
 
   async function signOut() {
@@ -124,7 +123,6 @@
     window.Cloud = {
       isEnabled,
       signInEmail,
-      signInGoogle,
       signOut,
       onAuthChange,
       currentUser,

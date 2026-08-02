@@ -28,8 +28,12 @@ store user data itself.
 1. Create a project at https://supabase.com.
 2. Run `supabase/schema.sql` in the project's **SQL Editor** (creates `profiles`
    + `scores` tables, row-level security, and the new-user trigger).
-3. **Authentication → Providers**: enable **Email** (and **Google** if you want
-   one-click sign-in; add your site URL as a redirect URL).
+3. **Authentication → Providers → Email**: make sure Email is enabled. Supabase
+   turns **"Confirm email"** on by default — with it on, a new account must click
+   the link in its inbox before it can sign in (sign-in otherwise returns
+   "Email not confirmed"). Turn that toggle **OFF** for instant sign-in, or leave
+   it on and just follow the "check your email" prompt. (Google sign-in was
+   removed — email only.)
 4. **Project Settings → API**: copy the **Project URL** and **anon/public key**
    into `js/config.js` (replace the `REPLACE_WITH_...` placeholders).
 5. That's it — the anon key is meant to be public and is safe in client code.

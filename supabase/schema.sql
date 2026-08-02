@@ -1,5 +1,12 @@
 -- Cosmic Gems - Supabase schema. Run this in the SQL editor of your project.
 -- Works with Postgres (Supabase) RLS. Safe to run once.
+--
+-- IMPORTANT: Supabase turns on "Confirm email" by default (Authentication ->
+-- Providers -> Email -> "Confirm email"). With it ON, a brand-new account
+-- CANNOT sign in until the user clicks the link in their inbox, so sign-in
+-- will return "Email not confirmed". If you want instant sign-in (no email
+-- confirmation step), turn that toggle OFF. The game shows a clear message
+-- either way.
 
 -- Profiles: one row per auth user, holds a display name.
 create table if not exists public.profiles (

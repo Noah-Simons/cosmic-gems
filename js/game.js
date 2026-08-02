@@ -533,7 +533,6 @@
   const authClose = document.getElementById('auth-close');
   const authSubmit = document.getElementById('auth-submit');
   const authToggle = document.getElementById('auth-toggle');
-  const authGoogle = document.getElementById('google-btn');
   const authEmail = document.getElementById('auth-email');
   const authPass = document.getElementById('auth-pass');
   const authMsg = document.getElementById('auth-msg');
@@ -615,14 +614,10 @@
       if (!email || !pass) { setAuthMsg('Enter email and password.'); return; }
       setAuthMsg('Working…');
       const r = await Cloud.signInEmail(email, pass, isSignUp);
+      // On failure or "needs confirmation", keep the modal open and show the real reason.
       if (!r.ok) { setAuthMsg(r.offline ? 'Cloud not configured.' : r.error); return; }
-      setAuthMsg(isSignUp ? 'Account created! Check your email to confirm.' : 'Signed in!', true);
-      setTimeout(() => authModal.classList.add('hidden'), 800);
-    });
-    authGoogle.addEventListener('click', async () => {
-      const r = await Cloud.signInGoogle();
-      if (!r.ok) { setAuthMsg(r.offline ? 'Cloud not configured.' : r.error); return; }
-      if (r.url) window.location.href = r.url;
+      setAuthMsg(isSignUp ? 'Signed up! Check your email, then sign in.' : 'Signed in!', true);
+      setTimeout(() => authModal.classList.add('hidden'), 900);
     });
     lbTabs.forEach((t) => t.addEventListener('click', () => {
       lbTabs.forEach((x) => x.classList.remove('active'));
