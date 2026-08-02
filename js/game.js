@@ -429,7 +429,9 @@
     if (window.Cloud && window.Cloud.isEnabled()) {
       const scoreArg = mode === 'leveled' ? bestLevel : best;
       const levelArg = mode === 'leveled' ? bestLevel : 1;
-      window.Cloud.submitScore(mode, scoreArg, levelArg).catch(() => {});
+      window.Cloud.submitScore(mode, scoreArg, levelArg)
+        .then((r) => { if (r && r.ok) loadLeaderboard(); }) // refresh the list to show the new score
+        .catch(() => {});
     }
   }
 
@@ -485,6 +487,7 @@
     overlay.classList.add('hidden');
     gameScreen.classList.add('hidden');
     homeScreen.classList.remove('hidden');
+    loadLeaderboard(); // refresh the cloud leaderboard when returning home
   }
 
   // ---- input ----
