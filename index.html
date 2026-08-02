@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cosmic Gems</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div id="stars"></div>
+
+  <!-- HOME SCREEN -->
+  <section id="home" class="screen">
+    <div class="home-card">
+      <h1 class="home-title">COSMIC&nbsp;GEMS</h1>
+      <p class="home-sub">Choose your mission, commander.</p>
+      <div class="mode-grid">
+        <button class="mode-card" id="mode-leveled" data-mode="leveled">
+          <span class="mode-icon">🪐</span>
+          <span class="mode-name">Leveled</span>
+          <span class="mode-desc">Climb endless levels — every one has a higher score goal.</span>
+          <span class="mode-best" id="best-leveled">Best: Lv 1</span>
+        </button>
+        <button class="mode-card" id="mode-infinite" data-mode="infinite">
+          <span class="mode-icon">♾️</span>
+          <span class="mode-name">Infinite</span>
+          <span class="mode-desc">No goal. Just match and chase the highest score you can.</span>
+          <span class="mode-best" id="best-infinite">Best: 0</span>
+        </button>
+      </div>
+
+      <a id="support-btn" class="support-btn" href="https://ko-fi.com/noahsimons" target="_blank" rel="noopener noreferrer">
+        <span class="support-icon">☕</span> Support the Developer
+      </a>
+
+      <!-- account / cloud -->
+      <div id="account" class="account">
+        <button id="signin-open" class="btn ghost">Sign In</button>
+        <span id="account-status" class="account-status"></span>
+      </div>
+
+      <!-- leaderboard -->
+      <div class="leaderboard">
+        <div class="lb-tabs">
+          <button class="lb-tab active" data-lb="leveled">Leveled</button>
+          <button class="lb-tab" data-lb="infinite">Infinite</button>
+        </div>
+        <ol id="lb-list" class="lb-list"><li class="lb-empty">Sign in to sync scores &amp; see the galaxy rank.</li></ol>
+      </div>
+
+      <p class="home-hint">Match 4 → Line Blaster &nbsp;·&nbsp; Match 5+ → Bomb</p>
+    </div>
+  </section>
+
+  <!-- SIGN IN MODAL -->
+  <div id="auth-modal" class="overlay hidden">
+    <div class="overlay-card">
+      <h2>Sign In</h2>
+      <p class="auth-sub">Save progress &amp; climb the galaxy leaderboard.</p>
+      <button id="google-btn" class="btn google">Continue with Google</button>
+      <div class="auth-divider"><span>or</span></div>
+      <input id="auth-email" class="auth-input" type="email" placeholder="you@example.com" autocomplete="email" />
+      <input id="auth-pass" class="auth-input" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="auth-submit" class="btn">Sign In / Sign Up</button>
+      <button id="auth-toggle" class="auth-toggle">No account? Create one</button>
+      <p id="auth-msg" class="auth-msg"></p>
+      <button id="auth-close" class="btn ghost">Close</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <main class="game hidden" id="game">
+    <button id="home-btn" class="home-btn">⌂ Home</button>
+
+    <header class="hud">
+      <div class="hud-block">
+        <span class="hud-label">SCORE</span>
+        <span id="score" class="hud-value">0</span>
+      </div>
+      <div class="hud-block title-block">
+        <h1>COSMIC&nbsp;GEMS</h1>
+        <span class="hud-sub">match the crystals</span>
+      </div>
+      <div class="hud-block">
+        <span class="hud-label">MOVES</span>
+        <span id="moves" class="hud-value">20</span>
+      </div>
+    </header>
+
+    <div class="target-row">
+      <span id="level-chip" class="level-chip">Lv 1</span>
+      <span class="hud-label" id="goal-label">GOAL</span>
+      <span id="target" class="hud-value-sm">800</span>
+    </div>
+
+    <div id="board" class="board" aria-label="game board"></div>
+
+    <div id="combo" class="combo-flash"></div>
+
+    <footer class="foot">
+      <button id="restart" class="btn">Restart</button>
+      <span id="best" class="best">Best: Lv 1</span>
+    </footer>
+  </main>
+
+  <div id="overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2 id="overlay-title">You Win!</h2>
+      <p id="overlay-msg">Nice matching, commander.</p>
+      <div id="overlay-actions" class="overlay-actions"></div>
+    </div>
+  </div>
+
+  <!-- Ad slot placeholder: drop a banner here later (AdSense / your Netlify setup) -->
+  <div id="ad-slot" class="ad-slot">[ ad space ]</div>
+
+  <script src="js/config.js"></script>
+  <script src="js/cloud.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
