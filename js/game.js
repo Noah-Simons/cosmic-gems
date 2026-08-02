@@ -613,7 +613,16 @@
       const pass = authPass.value;
       if (!email || !pass) { setAuthMsg('Enter email and password.'); return; }
       setAuthMsg('Working…');
-      const r = await Cloud.signInEmail(email, pass, isSignUp);
+      let r;
+      try {
+        // Safety net: if Supabase never responds, show a message instead of hanging.
+        r = await Promise.race([
+          Cloud.signInEmail(email, pass, isSignUp),
+          new Promise((res) => setTimeout(() => res({ ok: false, error: 'Request timed out. Check your connection and try again.' }), 10000)),
+        ]);
+      } catch (e) {
+        r = { ok: false, error: (e && e.message) || 'Sign-in failed.' };
+      }
       // On failure or "needs confirmation", keep the modal open and show the real reason.
       if (!r.ok) { setAuthMsg(r.offline ? 'Cloud not configured.' : r.error); return; }
       setAuthMsg(isSignUp ? 'Signed up! Check your email, then sign in.' : 'Signed in!', true);

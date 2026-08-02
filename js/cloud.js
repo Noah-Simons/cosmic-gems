@@ -31,19 +31,24 @@
 
   async function signInEmail(email, password, isSignUp) {
     if (!isEnabled()) return { ok: false, offline: true };
-    const fn = isSignUp ? client.auth.signUp : client.auth.signInWithPassword;
-    const { data, error } = await fn({ email, password });
-    if (error) {
-      // Surface the real reason to the UI instead of failing silently.
-      const msg = error.message || 'Sign-in failed.';
-      return { ok: false, error: msg };
+    try {
+      const fn = isSignUp ? client.auth.signUp : client.auth.signInWithPassword;
+      const { data, error } = await fn({ email, password });
+      if (error) {
+        // Surface the real reason to the UI instead of failing silently.
+        const msg = error.message || 'Sign-in failed.';
+        return { ok: false, error: msg };
+      }
+      // signUp returns a user but, with email confirmation on, no active session.
+      // Tell the user to check their inbox rather than leaving them stuck.
+      if (isSignUp && (!data.session || (data.user && data.user.identities && data.user.identities.length === 0))) {
+        return { ok: false, needsConfirmation: true, error: 'Signed up! Check your email, then sign in.' };
+      }
+      return { ok: true, user: data.user, session: data.session };
+    } catch (e) {
+      // Never let an exception leave the caller hanging.
+      return { ok: false, error: (e && e.message) ? e.message : 'Sign-in failed. Check your connection.' };
     }
-    // signUp returns a user but, with email confirmation on, no active session.
-    // Tell the user to check their inbox rather than leaving them stuck.
-    if (isSignUp && (!data.session || (data.user && data.user.identities && data.user.identities.length === 0))) {
-      return { ok: false, needsConfirmation: true, error: 'Account created! Check your email to confirm before signing in.' };
-    }
-    return { ok: true, user: data.user, session: data.session };
   }
 
   async function signOut() {
