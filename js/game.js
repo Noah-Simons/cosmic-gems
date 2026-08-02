@@ -389,11 +389,14 @@
   function refreshHud() {
     scoreEl.textContent = score;
     movesEl.textContent = String(moves);
-    levelChip.textContent = 'Lv ' + level;
     if (mode === 'leveled') {
+      levelChip.style.display = '';
+      levelChip.textContent = 'Lv ' + level;
       goalLabel.textContent = 'GOAL';
       targetEl.textContent = goal;
     } else {
+      // Infinite mode has no level — hide the level chip so it doesn't show "Lv 1".
+      levelChip.style.display = 'none';
       goalLabel.textContent = 'BEST';
       targetEl.textContent = best;
     }
