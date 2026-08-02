@@ -183,7 +183,8 @@
 
     const spawnPlan = [];
     for (const g of groups) {
-      if (g.len === 4) spawnPlan.push({ at: centerOf(g), type: grid[g.cells[0].r][g.cells[0].c], power: POWER.LINE });
+      // Match-4 (line or square) -> Line Blaster; match-5+ -> Bomb.
+      if (g.len === 4 || g.dir === 'sq') spawnPlan.push({ at: centerOf(g), type: grid[g.cells[0].r][g.cells[0].c], power: POWER.LINE, square: g.dir === 'sq' });
       else if (g.len >= 5) spawnPlan.push({ at: centerOf(g), type: grid[g.cells[0].r][g.cells[0].c], power: POWER.BOMB });
     }
     spawnPlan.forEach((s) => spawnLog.push({ ...s }));
@@ -308,6 +309,7 @@
   function flashCombo(level, count, spawnPlan) {
     let msg;
     if (spawnPlan && spawnPlan.some((s) => s.power === POWER.BOMB)) msg = 'BOMB CREATED!';
+    else if (spawnPlan && spawnPlan.some((s) => s.square)) msg = 'SQUARE!';
     else if (spawnPlan && spawnPlan.some((s) => s.power === POWER.LINE)) msg = 'LINE BLASTER!';
     else if (level >= 1) msg = `COMBO x${level + 1}  +${count * 15 * (level + 1)}`;
     else msg = `+${count * 15}`;

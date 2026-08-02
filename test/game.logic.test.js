@@ -206,6 +206,48 @@ const ok = (c, m) => (c ? pass++ : (fail++, console.error('  FAIL:', m)));
     ok(false, 'could not locate a 4-match swap on test board');
   }
 
+  // 5b. 2x2 SQUARE match: swapping two adjacent gems can make a 2x2 block of one type.
+  // Build a match-free board, then plant a 2x2 square that is ONE swap away, and
+  // verify the engine+controller clear it and reward a Line Blaster (like a 4-run).
+  const sq = [
+    [4,2,0,4,1,3,4,0],
+    [1,3,0,2,2,9,2,5],
+    [4,5,1,4,2,2,5,4],
+    [2,3,1,2,5,0,1,1],
+    [4,5,0,1,0,1,4,5],
+    [1,0,0,2,2,1,5,0],
+    [5,4,2,5,2,4,5,5],
+    [2,5,0,1,1,0,3,0],
+  ];
+  ok(Engine.findMatches(sq).length === 0, 'square test board starts with no matches');
+  // Find the adjacent swap that yields a 2x2 square (dir 'sq').
+  function findSquareMove(grid) {
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+      const makesSq = (r1, c1, r2, c2) => {
+        const x = grid[r1][c1]; grid[r1][c1] = grid[r2][c2]; grid[r2][c2] = x;
+        const ok = Engine.findMatchGroups(grid).some((g) => g.dir === 'sq' && g.len === 4);
+        const y = grid[r1][c1]; grid[r1][c1] = grid[r2][c2]; grid[r2][c2] = y;
+        return ok;
+      };
+      if (c + 1 < SIZE && makesSq(r, c, r, c + 1)) return { a: { r, c }, b: { r, c: c + 1 } };
+      if (r + 1 < SIZE && makesSq(r, c, r + 1, c)) return { a: { r, c }, b: { r: r + 1, c } };
+    }
+    return null;
+  }
+  const sqMove = findSquareMove(sq);
+  if (sqMove) {
+    G.clearSpawnLog();
+    G.setBoard(sq);
+    const beforeSq = G.getState();
+    await G.trySwap(sqMove.a, sqMove.b);
+    const afterSq = G.getState();
+    ok(afterSq.score > beforeSq.score, '2x2 square swap scored points');
+    ok(afterSq.grid.every((r) => r.every((v) => v !== null)), 'board refilled after square clear (no holes)');
+    ok(G.getSpawnLog().some((s) => s.power === 1 && s.square), '2x2 square spawned a LINE power gem (flagged square)');
+  } else {
+    ok(false, 'could not locate a 2x2 square swap on test board');
+  }
+
   // 6. swapping a power gem clears a large area (line blaster clears row+col)
   // Place a LINE power at (4,4) and swap it with a normal neighbor.
   const base = Engine.makeGrid(SIZE);

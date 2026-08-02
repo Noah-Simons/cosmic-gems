@@ -39,6 +39,35 @@ grp5[0][0] = grp5[1][0] = grp5[2][0] = grp5[3][0] = grp5[4][0] = 4; // vertical 
 const g5 = E.findMatchGroups(grp5);
 assert(g5.length === 1 && g5[0].len === 5 && g5[0].dir === 'v', 'findMatchGroups: vertical 5-run len+dir');
 
+// 3c. findSquares detects a 2x2 block of identical gems
+let sqBoard = blank();
+sqBoard[2][2] = sqBoard[2][3] = sqBoard[3][2] = sqBoard[3][3] = 4;
+const sqs = E.findSquares(sqBoard);
+assert(sqs.length === 1 && sqs[0].len === 4 && sqs[0].dir === 'sq', 'findSquares: detects one 2x2 block');
+assert(sqs[0].cells.length === 4, 'findSquares: group has 4 cells');
+assert(E.findMatches(sqBoard).length === 4, 'findMatches includes the 2x2 square (4 cells)');
+
+// 3d. a 2x2 formed only by swapping two adjacent gems is a valid move (not reverted)
+let swapBoard = blank();
+// set up so that swapping (2,3)<->(3,3) creates a 2x2 of type 4 at rows 2-3, cols 2-3
+swapBoard[2][2] = 4; swapBoard[3][2] = 4; swapBoard[2][3] = 4; swapBoard[3][3] = 7;
+swapBoard[3][4] = 4; // gives (3,3) a value that becomes a square when 4 moves in
+// Actually make the canonical case: swap (3,3)<->(3,4) where (3,4)=4 already
+swapBoard[3][3] = 7; swapBoard[3][4] = 4;
+const hasSqMove = (() => {
+  // simulate the swap and check findMatches finds the square
+  const a = { r: 3, c: 3 }, b = { r: 3, c: 4 };
+  const t = swapBoard[a.r][a.c]; swapBoard[a.r][a.c] = swapBoard[b.r][b.c]; swapBoard[b.r][b.c] = t;
+  const ok = E.findMatches(swapBoard).length > 0;
+  const t2 = swapBoard[a.r][a.c]; swapBoard[a.r][a.c] = swapBoard[b.r][b.c]; swapBoard[b.r][b.c] = t2;
+  return ok;
+})();
+assert(hasSqMove === true, 'swapping into a 2x2 square counts as a valid move');
+
+// 3e. findMatchGroups reports a square group (dir 'sq')
+const sqGroups = E.findMatchGroups(sqBoard);
+assert(sqGroups.some((g) => g.dir === 'sq' && g.len === 4), 'findMatchGroups reports square group');
+
 // 4. a single gem of a kind is not a match
 g = blank();
 g[3][3] = 5;

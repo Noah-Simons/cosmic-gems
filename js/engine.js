@@ -33,17 +33,49 @@
     return grid;
   }
 
-  // Would placing `type` at (r,c) complete a run of 3 with already-filled cells?
+  // Would placing `type` at (r,c) complete a run of 3 with already-filled cells,
+  // or complete a 2x2 square with already-filled cells?
+  // (makeGrid fills top-to-bottom, left-to-right, so only the square whose
+  //  top-left is (r-1,c-1) can be completed by placing (r,c) as its bottom-right.)
   function createsMatchAt(grid, r, c, type) {
     // two to the left
     if (c >= 2 && grid[r][c - 1] === type && grid[r][c - 2] === type) return true;
     // two above
     if (r >= 2 && grid[r - 1][c] === type && grid[r - 2][c] === type) return true;
+    // 2x2 square where (r,c) is the bottom-right corner (other three already filled)
+    if (r >= 1 && c >= 1 && grid[r - 1][c - 1] === type && grid[r - 1][c] === type && grid[r][c - 1] === type) return true;
     return false;
   }
 
+  // Return every 2x2 block of identical non-null gems (a "square" match).
+  // Each group: { cells:[{r,c}x4], len:4, dir:'sq' }
+  // The top-left corner of a square at (r,c) covers rows r,r+1 and cols c,c+1.
+  function findSquares(grid) {
+    const size = grid.length;
+    const groups = [];
+    for (let r = 0; r + 1 < size; r++) {
+      for (let c = 0; c + 1 < size; c++) {
+        const t = grid[r][c];
+        if (t === null) continue;
+        if (grid[r][c + 1] === t && grid[r + 1][c] === t && grid[r + 1][c + 1] === t) {
+          groups.push({
+            cells: [
+              { r, c },
+              { r, c: c + 1 },
+              { r: r + 1, c },
+              { r: r + 1, c: c + 1 },
+            ],
+            len: 4,
+            dir: 'sq',
+          });
+        }
+      }
+    }
+    return groups;
+  }
+
   // Return an array of {r,c} for every cell that is part of a horizontal or
-  // vertical run of 3+ identical (non-null) gems.
+  // vertical run of 3+ identical (non-null) gems, OR a 2x2 square match.
   function findMatches(grid) {
     const size = grid.length;
     const matched = new Set();
@@ -81,6 +113,11 @@
       }
     }
 
+    // 2x2 square matches
+    for (const sq of findSquares(grid)) {
+      sq.cells.forEach(({ r, c }) => matched.add(key(r, c)));
+    }
+
     return [...matched].map((v) => ({ r: Math.floor(v / size), c: v % size }));
   }
 
@@ -90,9 +127,8 @@
     return findMatches(grid).length;
   }
 
-  // Like findMatches but returns each run as a GROUP with length + direction,
-  // so callers can reward match-4 / match-5 differently.
-  // Each group: { cells: [{r,c}...], len, dir: 'h'|'v' }
+  // Return every match as a group (horizontal/vertical runs of 3+ AND 2x2
+  // squares). Each group: { cells:[{r,c}...], len, dir:'h'|'v'|'sq' }
   function findMatchGroups(grid) {
     const size = grid.length;
     const groups = [];
@@ -132,6 +168,9 @@
         }
       }
     }
+
+    // 2x2 squares
+    for (const sq of findSquares(grid)) groups.push(sq);
 
     return groups;
   }
@@ -195,6 +234,7 @@
     randInt,
     makeGrid,
     findMatches,
+    findSquares,
     findMatchGroups,
     countMatches,
     hasMoves,
