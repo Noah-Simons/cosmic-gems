@@ -299,8 +299,18 @@ html, body {
 .lb-empty { color: #678; justify-content: center; font-style: italic; }
 .lb-empty::before { content: ''; }
 
-.lb-refresh { margin-top: 10px; text-align: center; font-size: 11px; color: #678; letter-spacing: 0.5px; }
+.lb-refresh { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 11px; color: #678; letter-spacing: 0.5px; }
 .lb-refresh #lb-countdown { color: var(--neon); font-weight: 700; font-variant-numeric: tabular-nums; }
+.lb-refresh-btn {
+  background: rgba(125,249,255,0.08);
+  border: 1px solid rgba(125,249,255,0.25);
+  color: #cfe; border-radius: 8px;
+  padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+}
+.lb-refresh-btn:hover { background: rgba(125,249,255,0.16); box-shadow: 0 0 14px rgba(125,249,255,0.25); }
+.lb-refresh-btn:active { transform: scale(0.96); }
+.lb-refresh-btn:disabled, .lb-refresh-btn.busy { opacity: 0.6; cursor: default; }
 
 /* ---------- auth modal ---------- */
 #auth-modal .overlay-card { width: 300px; max-width: 92vw; }

@@ -546,6 +546,7 @@
   const authMsg = document.getElementById('auth-msg');
   const lbList = document.getElementById('lb-list');
   const lbCountdown = document.getElementById('lb-countdown');
+  const lbRefreshNow = document.getElementById('lb-refresh-now');
   const lbTabs = document.querySelectorAll('.lb-tab');
   let lbMode = 'leveled';
   let isSignUp = false;
@@ -666,6 +667,19 @@
       lbMode = t.dataset.lb;
       loadLeaderboard();
     }));
+    if (lbRefreshNow) {
+      let refreshing = false;
+      lbRefreshNow.addEventListener('click', async () => {
+        if (refreshing) return;
+        refreshing = true;
+        lbRefreshNow.disabled = true;
+        lbRefreshNow.classList.add('busy');
+        await loadLeaderboard();
+        refreshing = false;
+        lbRefreshNow.disabled = false;
+        lbRefreshNow.classList.remove('busy');
+      });
+    }
     Cloud.onAuthChange((session) => {
       const user = session && session.user;
       updateAccountUI(user);
