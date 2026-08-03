@@ -641,6 +641,12 @@
       authToggle.textContent = isSignUp ? 'Have an account? Sign in' : 'No account? Create one';
       authSubmit.textContent = isSignUp ? 'Sign Up' : 'Sign In';
     });
+    // Flip the auth form to sign-in mode (used right after a successful sign-up).
+    function switchToSignIn() {
+      isSignUp = false;
+      authToggle.textContent = 'No account? Create one';
+      authSubmit.textContent = 'Sign In';
+    }
     authSubmit.addEventListener('click', async () => {
       const email = authEmail.value.trim();
       const pass = authPass.value;
@@ -658,8 +664,15 @@
       }
       // On failure or "needs confirmation", keep the modal open and show the real reason.
       if (!r.ok) { setAuthMsg(r.offline ? 'Cloud not configured.' : r.error); return; }
-      setAuthMsg(isSignUp ? 'Signed up! Check your email, then sign in.' : 'Signed in!', true);
-      setTimeout(() => authModal.classList.add('hidden'), 900);
+      if (isSignUp) {
+        // New account created: tell the user to go sign in, and switch the form
+        // to sign-in mode for them (modal stays open so they can do it now).
+        setAuthMsg('Great! Now go back to the sign in page and sign into your account.', true);
+        switchToSignIn();
+      } else {
+        setAuthMsg('Signed in!', true);
+        setTimeout(() => authModal.classList.add('hidden'), 900);
+      }
     });
     lbTabs.forEach((t) => t.addEventListener('click', () => {
       lbTabs.forEach((x) => x.classList.remove('active'));
