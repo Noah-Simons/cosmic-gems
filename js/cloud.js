@@ -174,10 +174,20 @@
         return { ok: false, error: (j.error && j.error.message) || 'Failed to load.', rows: [] };
       }
       const rows = Array.isArray(j) ? j : [];
+      // Guarantee one entry per user: rows are ordered by the ranking column
+      // descending, so the first occurrence of each user_id is their best.
+      // Keep only that one (defensive against any duplicate rows from the DB).
+      const seen = new Set();
+      const dedupedRows = [];
+      rows.forEach((x) => {
+        if (!x.user_id || seen.has(x.user_id)) return;
+        seen.add(x.user_id);
+        dedupedRows.push(x);
+      });
       // Join display names. scores.user_id references auth.users, not profiles,
       // so we fetch profiles separately and merge (no FK relationship exists).
       let nameById = {};
-      const ids = rows.map((x) => x.user_id).filter(Boolean);
+      const ids = dedupedRows.map((x) => x.user_id).filter(Boolean);
       if (ids.length) {
         const pUrl = REST + '/profiles?select=id,display_name&id=in.(' + ids.map(encodeURIComponent).join(',') + ')';
         try {
@@ -188,7 +198,7 @@
       }
       return {
         ok: true,
-        rows: rows.map((x) => ({
+        rows: dedupedRows.map((x) => ({
           score: x.score,
           level: x.level,
           name: nameById[x.user_id] || 'Player',

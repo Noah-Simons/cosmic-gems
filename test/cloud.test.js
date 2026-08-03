@@ -119,6 +119,22 @@ function loadCloud({ enabled, fetchImpl, apiBase }) {
   const mine = await C.getMyBest();
   ok(mine && mine.leveled && mine.leveled.level === 9 && mine.infinite.score === 1200, 'getMyBest returns per-mode bests');
 
+  // 4.5 one entry per user: seed two rows for the same user in one mode and
+  // confirm the leaderboard collapses them to a single entry (their best).
+  const dupStore = {
+    scores: [
+      { id: 'a', user_id: 'uX', mode: 'infinite', score: 500, level: 1 },
+      { id: 'b', user_id: 'uX', mode: 'infinite', score: 900, level: 1 }, // same user, higher
+      { id: 'c', user_id: 'uY', mode: 'infinite', score: 700, level: 1 },
+    ],
+    profiles: [{ id: 'uX', display_name: 'X' }, { id: 'uY', display_name: 'Y' }],
+  };
+  const C2 = loadCloud({ enabled: true, fetchImpl: makeFetch('https://demo.supabase.co', dupStore), apiBase: 'https://demo.supabase.co' });
+  const dupLb = await C2.getLeaderboard('infinite');
+  ok(dupLb.ok && dupLb.rows.length === 2, 'duplicate (same user) rows collapse to one entry per user');
+  const xRow = dupLb.rows.find(r => r.name === 'X');
+  ok(xRow && xRow.score === 900, 'collapsed entry keeps the user best (900), not a duplicate');
+
   // 5. error path: bad login surfaced, no throw
   mode = 'badLogin';
   const bad = await C.signInEmail('me@x.com', 'wrong', false);
