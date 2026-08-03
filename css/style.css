@@ -299,6 +299,9 @@ html, body {
 .lb-empty { color: #678; justify-content: center; font-style: italic; }
 .lb-empty::before { content: ''; }
 
+.lb-refresh { margin-top: 10px; text-align: center; font-size: 11px; color: #678; letter-spacing: 0.5px; }
+.lb-refresh #lb-countdown { color: var(--neon); font-weight: 700; font-variant-numeric: tabular-nums; }
+
 /* ---------- auth modal ---------- */
 #auth-modal .overlay-card { width: 300px; max-width: 92vw; }
 .auth-sub { color: #9bb; font-size: 12px; margin-bottom: 14px; }

@@ -545,6 +545,7 @@
   const authPass = document.getElementById('auth-pass');
   const authMsg = document.getElementById('auth-msg');
   const lbList = document.getElementById('lb-list');
+  const lbCountdown = document.getElementById('lb-countdown');
   const lbTabs = document.querySelectorAll('.lb-tab');
   let lbMode = 'leveled';
   let isSignUp = false;
@@ -570,6 +571,7 @@
   }
 
   async function loadLeaderboard() {
+    resetLbCountdown(); // start the 5-minute clock (and show 5:00) immediately on every load
     if (!Cloud || !Cloud.isEnabled()) {
       lbList.innerHTML = '<li class="lb-empty">Cloud not configured — runs locally. Add Supabase keys in js/config.js.</li>';
       return;
@@ -586,6 +588,28 @@
       li.innerHTML = `<span class="lb-name">${escapeHtml(row.name)}</span><span class="lb-score">${val}</span>`;
       lbList.appendChild(li);
     });
+  }
+
+  // Auto-refresh the leaderboard every 5 minutes, with a live countdown.
+  const LB_REFRESH_MS = 5 * 60 * 1000;
+  let lbTimer = null;
+  let lbNextAt = 0;
+  function resetLbCountdown() {
+    lbNextAt = Date.now() + LB_REFRESH_MS;
+    if (lbTimer) clearInterval(lbTimer);
+    const tick = () => {
+      const remaining = Math.max(0, lbNextAt - Date.now());
+      if (lbCountdown) lbCountdown.textContent = formatMmss(remaining);
+      if (remaining <= 0) { lbTimer = null; loadLeaderboard(); }
+    };
+    tick();
+    lbTimer = setInterval(tick, 1000);
+  }
+  function formatMmss(ms) {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
   }
 
   function escapeHtml(s) {
