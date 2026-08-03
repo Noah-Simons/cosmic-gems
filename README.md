@@ -1,5 +1,7 @@
 # Cosmic Gems
 
+**▶ [Play here](https://noah-simons.github.io/cosmic-gems/)**
+
 A space-themed **match-3** puzzle game — swap adjacent crystals to line up runs of
 3+ and rack up points. Built in plain HTML/CSS/JS, no build step, no dependencies.
 Runs anywhere a static site runs (GitHub Pages out of the box).
@@ -20,7 +22,7 @@ Runs anywhere a static site runs (GitHub Pages out of the box).
   gem of its color). They sit on the board as glowing gems and fire when swapped
   into a match or matched directly.
 ## Accounts & leaderboard (Supabase)
-The game has **Sign In** (email or Google) and a global **leaderboard**. Progress
+The game has **Sign In** (email only) and a global **leaderboard**. Progress
 (best score / highest level) syncs across devices through the cloud. This needs a
 free [Supabase](https://supabase.com) project — GitHub Pages is static and can't
 store user data itself.
